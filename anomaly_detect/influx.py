@@ -21,7 +21,7 @@ def get_tree_boot_data():
     data = get_tree_rebuild_data(boot_start, boot_stop)
     return [(entry, (data[entry]['cpuUsage'], data[entry]['memUsage'])) for entry in sorted(data)]
 
-def get_tree_rebuild_data(start, stop: None):
+def get_tree_rebuild_data(start, stop=None):
     if stop == None:
         stop = 'now()'
     tables = client.query_api().query(f'from(bucket:"{bucket}") |> range(start: {start}, stop: {stop}) \
@@ -52,7 +52,8 @@ def get_active_containers(start: None):
 def get_new_data(start, container):
     tables = client.query_api().query(f'from(bucket:"{bucket}") |> range(start: {start}) \
                                                                 |> filter(fn: (r) => r.{tag} == "{tag_val}" and r.id == "{container}") \
-                                                                |> truncateTimeColumn(unit: 1s)')
+                                                                |> truncateTimeColumn(unit: 1s) \
+                                                                |> sort(columns: ["_time"])')
 
     data = convert_tables_to_dict(tables)
     return [(entry, (data[entry]['cpuUsage'], data[entry]['memUsage'])) for entry in sorted(data)]

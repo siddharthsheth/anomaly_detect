@@ -1,5 +1,5 @@
 from collections import Counter
-from time import time
+from time import time, sleep
 from greedypermutation.balltree import greedy_tree
 from metricspaces import MetricSpace
 from greedypermutation import Point
@@ -62,18 +62,6 @@ class GreedyTreeModel():
             self.load_data(data)
             self.build_tree()
             self.build_model()
-
-class AnomalyDetector():
-    def __init__(self, window_size, radii, rebuild_period, stop_time=np.inf):
-        self.model = GreedyTreeModel(window_size, radii, influx.get_tree_boot_data())
-        self.rebuild_period = rebuild_period
-        self.stop_time = stop_time
-
-    def start(self):
-        self.start = time()
-
-    def rebuild():
-                    
 
 # def pred_point(point, tree, radii, radii_thresholds):
 #     counts = [tree.range_count(point, radius) for radius in radii]
