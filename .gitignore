@@ -6,7 +6,9 @@ __pycache__/
 # User specified
 *.txt
 *.csv
+*.xlsx
 container.py
+aggregate.py
 
 # C extensions
 *.so

@@ -1,5 +1,8 @@
 from greedypermutation import Point
 
+"""
+This module represents a series of greedypermutation.Point objects as a single point from a time-series database.
+"""
 class TimeSeriesPoint():
     def __init__(self, series):
         self.points = tuple(series)

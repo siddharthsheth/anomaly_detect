@@ -1,15 +1,24 @@
 from collections import Counter
-from time import time, sleep
+from time import time
 from greedypermutation.balltree import greedy_tree
 from metricspaces import MetricSpace
 from greedypermutation import Point
 from timeSeriesPoint import TimeSeriesPoint
 from sklearn.preprocessing import StandardScaler
+from sklearn.cluster import DBSCAN
 import numpy as np
 from csv import reader
 import influx
+from os import chdir, getcwd
+
+"""
+This module represents a model to predict anomalies using the greedy tree.
+"""
 
 class GreedyTreeModel():
+    """
+    
+    """
     def __init__(self, window_size, radii, data=()):
         self.window_size = window_size
         self.radii = radii
@@ -54,53 +63,66 @@ class GreedyTreeModel():
             print(f'{radius}: {self.radii_thresholds[radius]["mean"] - self.radii_thresholds[radius]["std"]} - {self.radii_thresholds[radius]["mean"] + self.radii_thresholds[radius]["std"]}')
         print(f'preprocessing time: {time()-start:.2f} s')
 
-    def pred_point(self, point):
+    def pred_point(self, point, std_param=1):
         counts = {radius: self.tree.range_count(point, radius) for radius in self.radii}
-        return (tuple(counts.items()), 0 if any(counts[radius] > self.radii_thresholds[radius]['mean'] - self.radii_thresholds[radius]['std'] and counts[radius] < self.radii_thresholds[radius]['mean'] + self.radii_thresholds[radius]['std'] for radius in self.radii) else 1)
+        return ([(radius, counts[radius]) for radius in self.radii if counts[radius] < self.radii_thresholds[radius]['mean'] - std_param*self.radii_thresholds[radius]['std'] -1 or counts[radius] > self.radii_thresholds[radius]['mean'] + std_param*self.radii_thresholds[radius]['std']], 0 if all(counts[radius] >= self.radii_thresholds[radius]['mean'] - std_param*self.radii_thresholds[radius]['std'] -1 and counts[radius] <= self.radii_thresholds[radius]['mean'] + std_param*self.radii_thresholds[radius]['std'] for radius in self.radii) else 1)
 
     def rebuild_model(self, data):
-            self.load_data(data)
-            self.build_tree()
-            self.build_model()
+        self.load_data(data)
+        self.build_tree()
+        self.build_model()
 
 # def pred_point(point, tree, radii, radii_thresholds):
 #     counts = [tree.range_count(point, radius) for radius in radii]
 #     return (tuple(counts), 0 if not all(counts[i] > radii_thresholds[radius][0] - radii_thresholds[radius][1] or counts[i] < radii_thresholds[radius][0] + radii_thresholds[radius][1] for i, radius in enumerate(radii)) else 1)
     
 if __name__ == '__main__':
-    window_size, radii = 1, (0.125, 0.25, 0.5, 1, 2, 4, 8, 16, 32, 64)
+    window_size, radii = 3, (0.125, 0.25, 0.5, 1, 2, 4, 8)
+    # (1, 2, 4, 8, 16, 32, 64)
+    # (0.03125/4, 0.03125/2, 0.03125, 0.0625, 0.125, 0.25, 0.5, 1, 2, 4, 8)
     model = GreedyTreeModel(window_size, radii, influx.get_tree_boot_data())
 
+
+
     test_data = []
-    with open('work/code-projects/anomaly_detect/test_data.csv', 'r') as test:
+    chdir(getcwd())
+    with open('new_test_data.csv', 'r') as test:
         testreader = reader(test)
-        test_data = [(line[0], (float(line[1]), float(line[2])), int(line[4]), (float(line[5]), float(line[6])), int(line[8])) for line in testreader]
+        next(testreader)
+        # test_data = [(line[0], (float(line[1]), float(line[2])), int(line[4]), (float(line[5]), float(line[6])), int(line[8])) for line in testreader]
+        test_data = [(line[0], *[(((float(line[3*i+1]), float(line[3*i+2]))), int(line[3*i+3])) for i in range(5)], int(line[-1])) for line in testreader]
     
     test_len = len(test_data)
 
-    test_1 = model.scaler.transform([test_data[i][1] for i in range(test_len)])
-    test_1 = MetricSpace([TimeSeriesPoint((Point(test_1[i-j]) for j in range(window_size))) for i in range(window_size, test_len)])
-    test_1_sol = [test_data[i][2] for i in range(window_size, test_len)]
+    raw_tests = [model.scaler.transform([test_data[i][j+1][0] for i in range(test_len)]) for j in range(5)]
+    test_sols = [[test_data[i][j+1][1] for i in range(window_size, test_len)] for j in range(5)]
+    tests = [MetricSpace(TimeSeriesPoint(Point(test[i-j]) for j in range(window_size)) for i in range(window_size, test_len)) for test in raw_tests]
+    test_preds = [[model.pred_point(point, 6) for point in test] for test in tests]
 
-    test_1_pred = [model.pred_point(point) for point in test_1]
+    db_preds = []
+    dbscan = DBSCAN(eps=10, min_samples=3)
+    for test in raw_tests:
+        db_preds.append(dbscan.fit(test))
+    for db_pred in db_preds:
+        labels = db_pred.labels_
+
+        # Number of clusters in labels, ignoring noise if present.
+        n_clusters_ = len(set(labels)) - (1 if -1 in labels else 0)
+        n_noise_ = list(labels).count(-1)
+
+        print("Estimated number of clusters: %d" % n_clusters_)
+        print("Estimated number of noise points: %d" % n_noise_)
     
-    # for p in test_1_pred:
-    #     print(p)
-    print("Test 1:")
-    for i, pred in enumerate(test_1_pred):
-        if test_1_sol[i] != pred[1]:
-            print(f'Mismatch at {test_data[i][0]}: actual is {test_1_sol[i]} while predicted {pred[1]}. Counts = {pred[0]}')
-
-    test_2 = model.scaler.transform([test_data[i][3] for i in range(test_len)])
-    test_2 = MetricSpace([TimeSeriesPoint((Point(test_2[i-j]) for j in range(window_size))) for i in range(window_size, test_len)])
-    test_2_sol = [test_data[i][4] for i in range(window_size, test_len)]
-
-    test_2_pred = [model.pred_point(point) for point in test_2]
-    # for test_point in test_2:
-    #     counts = [model.tree.range_count(test_point, radius) for radius in radii]
-    #     test_2_pred.append((tuple(counts), 0 if not all(counts[i] > model.radii_thresholds[radius][0] - model.radii_thresholds[radius][1] or counts[i] < model.radii_thresholds[radius][0] + model.radii_thresholds[radius][1] for i, radius in enumerate(radii)) else 1))
-
-    print("Test 2:")
-    for i, pred in enumerate(test_2_pred):
-        if test_2_sol[i] != pred[1]:
-            print(f'Mismatch at {i}: actual is {test_2_sol[i]} while predicted {pred[1]}. Counts = {pred[0]}')
+    # for j in range(100):
+    #     print(j+2, test_sols[1][j], test_preds[1][j])
+    for i in range(5):
+        # print(f'Running test {i+1}.')
+        fp, fn = 0, 0
+        for j, p in enumerate(test_preds[i]):
+            if test_sols[i][j] != p[1]:
+                if p[1] == 1:
+                    fp += 1
+                else:
+                    fn += 1
+                print(f'{j}- Mismatch at {test_data[j][0]}: actual is {test_sols[i][j]} while predicted {p[1]}. Point = {test_data[j][i+1][0]} Counts = {p[0]}')
+        print(f'Test {i+1}: FP- {fp} FN- {fn}')
