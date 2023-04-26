@@ -5,8 +5,7 @@ from collections import defaultdict
 from timeSeriesPoint import TimeSeriesPoint
 from greedypermutation import Point
 from numpy import inf
-from requests import post, get
-from json import dumps
+from requests import post
 
 class AnomalyDetector():
     def __init__(self, radii, std_param=2, rebuild_period=1, cooldown=15, stop_time=inf, slo=3):
@@ -27,7 +26,7 @@ class AnomalyDetector():
         """
         self.start = time()
         lifespan = time()
-        print(f'Tree will be rebuilt in {self.rebuild_period}s.')
+        print(f'Tree will be rebuilt in {self.rebuild_period} s.')
         while time() - self.start < self.stop_time:
             if time() - lifespan > self.rebuild_period:
                 print('Tree is stale. Rebuilding the tree.')
@@ -55,9 +54,9 @@ class AnomalyDetector():
                 scaled_entry = self.model.scaler.transform([entry[1]])[0]
                 if len(self.temp_storage[container]) == self.model.window_size-1 or container in self.containers:
                     self.update_detector_state(scaled_entry, container, entry[0])
-                    counters, pred = self.model.pred_point(self.containers[container]['point'], self.std_param)
+                    _, pred = self.model.pred_point(self.containers[container]['point'], self.std_param)
                     if pred == 1:
-                        print(f'Prediction for {container}: {pred}, radii: {counters}')
+                        print(f'Prediction for {container}: {pred}')
                         potentially_anomalous_containers.add(container)
                 else:
                     self.temp_storage[container].append(Point(scaled_entry))
@@ -66,22 +65,7 @@ class AnomalyDetector():
             self.potential_anomalies = defaultdict(int)
         else:
             self.update_potential_anomalies(potentially_anomalous_containers)
-            # for container in potentially_anomalous_containers:
-            #     print(f'Container {container} is potentially anomalous.')
-            #     self.potential_anomalies[container] += 1
-            # to_delete =set()
-            # for container in self.potential_anomalies:
-            #     if container not in potentially_anomalous_containers:
-            #         print(f'Container {container} is no longer potentially anomalous.')
-            #         to_delete.add(container)
-            #     elif self.potential_anomalies[container] == self.slo:
-            #         print(f'Anomaly in container {container}: {counters}')
-            #         # potentially_anomalous_containers.remove(container)
-            #         post('http://152.7.179.7', dumps({'container_id': container}))
-            # for container in to_delete:
-            #     del self.potential_anomalies[container]
             
-        # print('Going to sleep')
         sleep(self.cooldown)
     
     def update_potential_anomalies(self, potentially_anomalous_containers):

@@ -34,17 +34,17 @@ class GreedyTreeModel():
         self.data = [(self.timestamps[i], TimeSeriesPoint((Point(data[i-j]) for j in range(self.window_size)))) for i in range(self.window_size, len(data))]
 
     def build_tree(self):
-        print(f'training on {len(self.data)} data points')
+        print(f'Training on {len(self.data)} data points.')
         mass = Counter([point for _, point in self.data])
         points, mass = zip(*mass.items())
-        print(f'total mass = {sum(mass)}')
+        # print(f'total mass = {sum(mass)}')
 
-        print('starting tree construction')
+        print('Starting greedy tree construction.')
         start = time()
         M = MetricSpace(points)
-        print(f'no of unique points: {len(M)}') 
+        # print(f'no of unique points: {len(M)}') 
         self.tree = greedy_tree(M, mass=mass)
-        print(f'construction time: {time()-start:.2f} s')
+        print(f'Tree construction time: {time()-start:.2f} s.')
 
     def build_model(self):
         if self.data is None:
@@ -53,7 +53,7 @@ class GreedyTreeModel():
             print('Tree needs to be built before building model.')
             return
         
-        print('getting radii thresholds')
+        print('Getting radii thresholds.')
         start = time()
 
         radii_freqs = {radius: np.array([self.tree.range_count(point, radius) for _, point in self.data]) for radius in self.radii}
@@ -61,7 +61,7 @@ class GreedyTreeModel():
 
         for radius in self.radii:
             print(f'{radius}: {self.radii_thresholds[radius]["mean"] - self.radii_thresholds[radius]["std"]} - {self.radii_thresholds[radius]["mean"] + self.radii_thresholds[radius]["std"]}')
-        print(f'preprocessing time: {time()-start:.2f} s')
+        print(f'Preprocessing time: {time()-start:.2f} s')
 
     def pred_point(self, point, std_param=1):
         counts = {radius: self.tree.range_count(point, radius) for radius in self.radii}
