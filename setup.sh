@@ -1,9 +1,9 @@
-mkdir anomaly_detect
-cd anomaly_detect
+mkdir anomalydetect
+cd anomalydetect
 
-git clone https://siddharthsheth@github.com/metricspaces
-git clone https://siddharthsheth@github.com/greedypermutation
-# git clone https://siddharthsheth@github.com/anomaly_detect
+git clone https://www.github.com/siddharthsheth/metricspaces
+git clone https://www.github.com/siddharthsheth/greedypermutation
+git clone https://www.github.com/siddharthsheth/anomaly_detect
 
 pip install -e metricspaces
 pip install -e greedypermutation

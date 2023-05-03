@@ -9,6 +9,8 @@ __pycache__/
 *.xlsx
 container.py
 aggregate.py
+*.png
+*.DS_store
 
 # C extensions
 *.so

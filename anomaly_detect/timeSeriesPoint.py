@@ -1,13 +1,21 @@
 from greedypermutation import Point
 
-"""
-This module represents a series of greedypermutation.Point objects as a single point from a time-series database.
-"""
 class TimeSeriesPoint():
+    """
+    This class represents a consecutive sequence of measurements from a time-series database as a single point.
+    Each measurement is stored as a `greedypermutation.Point` object.
+    """
     def __init__(self, series):
+        """
+        Create a new TimeSeriesPoint object.
+        The input `series` is a sequence of measurements (a list of tuples) where the first measurement is the oldest.
+        """
         self.points = tuple(series)
     
     def dist(self, other):
+        """
+        The distance between two TimeSeriesPoints is the sum of the distances between corresponding measurements in the two points.
+        """
         w = len(self.points)
         return sum(self.points[i].dist(other.points[i]) for i in range(w))
     
@@ -20,6 +28,10 @@ class TimeSeriesPoint():
     def __hash__(self) -> int:
         return hash(self.points)
     
-    def slide_window(self, new_point):
-        self.points = tuple([Point(p) for p in self.points[1:]] + [Point(new_point)])
+    def slide_window(self, new_measure):
+        """
+        Update a TimeSeriesPoint by a unit of time.
+        The oldest measurement in the point is discarded and `new_measure` is appended as the newest measurement.
+        """
+        self.points = tuple([Point(p) for p in self.points[1:]] + [Point(new_measure)])
         # self.points = tuple(*self.points[1:], Point(new_point))
